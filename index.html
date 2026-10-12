@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAPTCHA Master - Тренажёр Внимательности</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            900: '#0f172a',
+                            accent: '#10b981',
+                            gold: '#f59e0b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        @keyframes coinBounce {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-3px) rotate(10deg); }
+        }
+        .coin-icon {
+            display: inline-block;
+            animation: coinBounce 2s infinite ease-in-out;
+        }
+        .captcha-grid-cell {
+            transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .captcha-grid-cell:hover {
+            transform: scale(1.03);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 28px;
+            width: 28px;
+            border-radius: 50%;
+            background: #0284c7;
+            cursor: pointer;
+            box-shadow: 0 0 12px rgba(2, 132, 199, 0.6);
+            transition: background-color 0.2s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            background: #38bdf8;
+        }
+        @keyframes pulseAura {
+            0%, 100% { opacity: 0.3; transform: scale(0.98); }
+            50% { opacity: 0.75; transform: scale(1.05); }
+        }
+        .aura-effect {
+            animation: pulseAura 2s infinite ease-in-out;
+        }
+
+        /* Speech Bubble Animation */
+        @keyframes popInSpeech {
+            0% { opacity: 0; transform: scale(0.5) translateY(10px); }
+            70% { transform: scale(1.08) translateY(-2px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .speech-bubble {
+            animation: popInSpeech 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            position: relative;
+        }
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 8px 8px 0;
+            border-style: solid;
+            border-color: #0284c7 transparent;
+            display: block;
+            width: 0;
+        }
+        .speech-bubble-fail::after {
+            border-color: #e11d48 transparent !important;
+        }
+        .speech-bubble-success::after {
+            border-color: #10b981 transparent !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col transition-colors duration-300">
+
+    <!-- Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-cyan-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-cyan-600/30">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="text-base md:text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-400 via-emerald-400 to-amber-400 bg-clip-text text-transparent">
+                        КАПЧА МАСТЕР
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Тренажёр внимательности</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 md:space-x-3">
+                <!-- Coin Balance -->
+                <div class="flex items-center gap-2 bg-slate-800/90 border border-amber-500/40 px-3 py-1.5 rounded-xl shadow-sm">
+                    <i class="fa-solid fa-coins text-amber-400 text-base coin-icon"></i>
+                    <span id="headerCoinBalance" class="font-mono font-bold text-amber-400 text-sm md:text-base">0</span>
+                </div>
+
+                <!-- Skin Shop Button -->
+                <button id="openShopBtn" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs md:text-sm shadow-lg shadow-amber-500/20 flex items-center gap-2 transition transform active:scale-95">
+                    <i class="fa-solid fa-shirt"></i>
+                    <span>Скины</span>
+                </button>
+
+                <!-- Audio Toggles -->
+                <button id="voiceToggle" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 transition" title="Озвучка фраз">
+                    <i class="fa-solid fa-comment-dots text-xs md:text-sm" id="voiceIcon"></i>
+                </button>
+                <button id="soundToggle" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Звуки">
+                    <i class="fa-solid fa-volume-high text-xs md:text-sm" id="soundIcon"></i>
+                </button>
+                <button id="themeToggle" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Тема">
+                    <i class="fa-solid fa-moon text-xs md:text-sm" id="themeIcon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
+
+        <!-- Top Metrics Bar -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Уровень</p>
+                    <p id="statLevel" class="text-xl md:text-2xl font-bold text-white font-mono">1</p>
+                </div>
+                <div class="p-3 bg-cyan-500/10 rounded-lg text-cyan-400">
+                    <i class="fa-solid fa-layer-group text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Очки</p>
+                    <p id="statScore" class="text-xl md:text-2xl font-bold text-emerald-400 font-mono">0</p>
+                </div>
+                <div class="p-3 bg-emerald-500/10 rounded-lg text-emerald-400">
+                    <i class="fa-solid fa-trophy text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Точность</p>
+                    <p id="statAccuracy" class="text-xl md:text-2xl font-bold text-amber-400 font-mono">100%</p>
+                </div>
+                <div class="p-3 bg-amber-500/10 rounded-lg text-amber-400">
+                    <i class="fa-solid fa-bullseye text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Серия</p>
+                    <p id="statStreak" class="text-xl md:text-2xl font-bold text-purple-400 font-mono">0</p>
+                </div>
+                <div class="p-3 bg-purple-500/10 rounded-lg text-purple-400">
+                    <i class="fa-solid fa-fire text-lg"></i>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid md:grid-cols-12 gap-6 items-start">
+
+            <!-- CAPTCHA Card -->
+            <div class="md:col-span-8 bg-slate-800/90 border border-slate-700 rounded-2xl shadow-xl overflow-hidden relative min-h-[480px] flex flex-col justify-between">
+                
+                <!-- CAPTCHA Header -->
+                <div class="bg-slate-900/90 border-b border-slate-700 p-4 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full bg-cyan-500 animate-pulse"></div>
+                        <span id="captchaTypeBadge" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase">
+                            ЗАГРУЗКА
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2 font-mono text-xs font-medium bg-slate-900 px-3 py-1 rounded-lg border border-slate-700 text-amber-400">
+                        <i class="fa-solid fa-coins text-xs"></i>
+                        <span id="rewardPreviewLabel">+20 коинов</span>
+                    </div>
+                </div>
+
+                <!-- Prompt Title -->
+                <div class="p-4 bg-slate-900/40 border-b border-slate-800/60 flex justify-between items-start">
+                    <div>
+                        <h2 id="captchaPrompt" class="text-base md:text-lg font-semibold text-slate-100">
+                            Подготовка задания...
+                        </h2>
+                        <p id="captchaSubPrompt" class="text-xs text-slate-400 mt-1">Выполните указанное действие.</p>
+                    </div>
+                    <button id="refreshCaptchaBtn" class="text-slate-400 hover:text-cyan-400 p-2 transition" title="Новое задание">
+                        <i class="fa-solid fa-rotate-right text-base"></i>
+                    </button>
+                </div>
+
+                <!-- CAPTCHA Canvas/Interactive Workspace -->
+                <div id="captchaWorkArea" class="p-4 md:p-6 flex-1 flex flex-col items-center justify-center min-h-[280px] relative">
+                    <!-- Dynamic CAPTCHAs rendered here -->
+                </div>
+
+                <!-- Verification Bar -->
+                <div class="p-4 bg-slate-900/80 border-t border-slate-800 flex justify-between items-center gap-3">
+                    <div class="text-xs text-slate-400 hidden sm:block">
+                        <i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Режим без ограничения по времени
+                    </div>
+                    <button id="verifyBtn" class="w-full sm:w-auto px-7 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl shadow-lg shadow-cyan-600/30 transition-all flex items-center justify-center gap-2 text-sm">
+                        <span>ПОДТВЕРДИТЬ</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Character & Avatar Panel -->
+            <div class="md:col-span-4 bg-slate-800/90 border border-slate-700 rounded-2xl p-5 flex flex-col items-center justify-between min-h-[480px] relative overflow-hidden">
+                <div class="w-full flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-user-astronaut text-cyan-400"></i> Ваш Персонаж
+                    </h3>
+                    <span id="characterMoodBadge" class="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full uppercase font-semibold">
+                        Нейтральный
+                    </span>
+                </div>
+
+                <!-- Speech Bubble Above Avatar -->
+                <div class="w-full h-16 flex items-center justify-center my-1 z-10">
+                    <div id="avatarSpeechBubble" class="speech-bubble bg-cyan-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl text-center shadow-lg border border-cyan-400/30 max-w-[220px]">
+                        Привет! Давай тренироваться!
+                    </div>
+                </div>
+
+                <!-- SVG Avatar Container -->
+                <div id="mainAvatarContainer" class="relative w-48 h-56 flex items-center justify-center my-2 rounded-2xl bg-slate-900/60 border border-slate-700/50 p-2 overflow-hidden">
+                    <svg id="mainAvatarSVG" viewBox="0 0 200 240" class="w-full h-full drop-shadow-xl">
+                        <!-- Rendered by JavaScript -->
+                    </svg>
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <button id="openShopBtn2" class="w-full mt-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-cyan-300 font-semibold text-xs rounded-xl border border-slate-600 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-shirt"></i>
+                    <span>Открыть Гардероб & Скины</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Skin Shop & Wardrobe Modal -->
+    <div id="shopModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-amber-500/10 text-amber-400 rounded-xl">
+                        <i class="fa-solid fa-store text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg text-white">Магазин Скинов и Гардероб</h2>
+                        <p class="text-xs text-slate-400">Покупайте предметы и создайте уникальный стиль</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 bg-slate-800 border border-amber-500/40 px-3 py-1.5 rounded-xl">
+                        <i class="fa-solid fa-coins text-amber-400 coin-icon"></i>
+                        <span id="shopCoinBalance" class="font-mono font-bold text-amber-400 text-base">0</span>
+                    </div>
+                    <button id="closeShopBtn" class="text-slate-400 hover:text-white p-2 text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="flex-1 grid md:grid-cols-12 overflow-hidden">
+                <!-- Shop Avatar Preview -->
+                <div class="md:col-span-4 bg-slate-950/50 p-6 flex flex-col items-center justify-center border-r border-slate-800">
+                    <div id="shopSpeechBubble" class="speech-bubble bg-cyan-600 text-white font-bold text-xs px-3 py-1.5 rounded-xl text-center mb-3 shadow-md">
+                        Примерь что-нибудь!
+                    </div>
+                    <div class="w-48 h-56 rounded-2xl bg-slate-900 border border-slate-800 p-2 flex items-center justify-center shadow-inner">
+                        <svg id="shopAvatarSVG" viewBox="0 0 200 240" class="w-full h-full">
+                            <!-- Shop Avatar Render -->
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Wardrobe Categories & Items -->
+                <div class="md:col-span-8 flex flex-col overflow-hidden bg-slate-900/60 p-4">
+                    <!-- Category Tabs -->
+                    <div class="flex gap-2 border-b border-slate-800 pb-3 overflow-x-auto" id="shopCategoryTabs">
+                        <button data-cat="hats" class="shop-tab-btn active px-3 py-1.5 rounded-xl text-xs font-semibold bg-cyan-600 text-white whitespace-nowrap">Головные уборы</button>
+                        <button data-cat="glasses" class="shop-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Очки и Маски</button>
+                        <button data-cat="outfits" class="shop-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Одежда</button>
+                        <button data-cat="expressions" class="shop-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Эмоции</button>
+                        <button data-cat="auras" class="shop-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Ауры и Фоны</button>
+                    </div>
+
+                    <!-- Items Grid -->
+                    <div id="shopItemsGrid" class="flex-1 overflow-y-auto p-2 grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                        <!-- Dynamic Shop Items -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Global Application State */
+        const state = {
+            level: 1,
+            score: 0,
+            coins: 50,
+            streak: 0,
+            totalSolved: 0,
+            totalAttempts: 0,
+            soundEnabled: true,
+            voiceEnabled: true,
+            currentCaptchaType: null,
+            currentSolution: null,
+            inventory: ['hat_none', 'glasses_none', 'outfit_default', 'expr_neutral', 'aura_none'],
+            equipped: {
+                hat: 'hat_none',
+                glasses: 'glasses_none',
+                outfit: 'outfit_default',
+                expression: 'expr_neutral',
+                aura: 'aura_none'
+            }
+        };
+
+        /* Load from LocalStorage */
+        function loadSavedData() {
+            try {
+                const saved = localStorage.getItem('captcha_master_save');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(state, parsed);
+                }
+            } catch (e) {
+                console.error("Save load error:", e);
+            }
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem('captcha_master_save', JSON.stringify(state));
+            } catch (e) {
+                console.error("Save error:", e);
+            }
+        }
+
+        /* Web Audio API Sound Synthesizer */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (!state.soundEnabled) return;
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'success') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.2); // A5
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'fail') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'click') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, now);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                }
+            } catch(e) {}
+        }
+
+        /* Web Speech API Voice synthesis */
+        function speakPhrase(text) {
+            if (!state.voiceEnabled || !('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ru-RU';
+                utterance.pitch = 1.1;
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+            } catch(e) {}
+        }
+
+        /* Items Catalog */
+        const CATALOG = {
+            hats: [
+                { id: 'hat_none', name: 'Без убора', price: 0, icon: 'fa-ban' },
+                { id: 'hat_cap', name: 'Кепка', price: 30, icon: 'fa-hat-cowboy' },
+                { id: 'hat_crown', name: 'Корона', price: 100, icon: 'fa-crown' },
+                { id: 'hat_wizard', name: 'Колпак мага', price: 75, icon: 'fa-hat-wizard' },
+                { id: 'hat_cat', name: 'Кошачьи ушки', price: 60, icon: 'fa-cat' }
+            ],
+            glasses: [
+                { id: 'glasses_none', name: 'Без очков', price: 0, icon: 'fa-ban' },
+                { id: 'glasses_cool', name: 'Крутые очки', price: 25, icon: 'fa-glasses' },
+                { id: 'glasses_vr', name: 'VR Шлем', price: 80, icon: 'fa-vr-cardboard' },
+                { id: 'glasses_monocle', name: 'Монокль', price: 45, icon: 'fa-eye' }
+            ],
+            outfits: [
+                { id: 'outfit_default', name: 'Худи', price: 0, icon: 'fa-shirt' },
+                { id: 'outfit_suit', name: 'Смокинг', price: 90, icon: 'fa-user-tie' },
+                { id: 'outfit_hero', name: 'Плащ героя', price: 120, icon: 'fa-shield-heart' },
+                { id: 'outfit_armor', name: 'Доспехи', price: 150, icon: 'fa-shield' }
+            ],
+            expressions: [
+                { id: 'expr_neutral', name: 'Нейтральный', price: 0, icon: 'fa-meh' },
+                { id: 'expr_happy', name: 'Радостный', price: 20, icon: 'fa-smile' },
+                { id: 'expr_wink', name: 'Подмигивание', price: 35, icon: 'fa-smile-wink' },
+                { id: 'expr_cool', name: 'Крутой', price: 40, icon: 'fa-sunglasses' }
+            ],
+            auras: [
+                { id: 'aura_none', name: 'Без эффекта', price: 0, icon: 'fa-ban' },
+                { id: 'aura_fire', name: 'Огненная аура', price: 110, icon: 'fa-fire' },
+                { id: 'aura_stars', name: 'Звёздный нимб', price: 95, icon: 'fa-star' }
+            ]
+        };
+
+        /* SVG Avatar Rendering System */
+        function renderAvatarSVG(equippedObj) {
+            const h = equippedObj.hat;
+            const g = equippedObj.glasses;
+            const o = equippedObj.outfit;
+            const e = equippedObj.expression;
+            const a = equippedObj.aura;
+
+            let auraSvg = '';
+            if (a === 'aura_fire') {
+                auraSvg = `<circle cx="100" cy="120" r="85" fill="none" stroke="#f59e0b" stroke-width="6" class="aura-effect" stroke-dasharray="10 5"/>`;
+            } else if (a === 'aura_stars') {
+                auraSvg = `<circle cx="100" cy="120" r="85" fill="none" stroke="#38bdf8" stroke-width="4" class="aura-effect"/>`;
+            }
+
+            // Body / Clothing
+            let bodySvg = `<path d="M 50 200 C 50 150, 150 150, 150 200 L 160 240 L 40 240 Z" fill="#0284c7" />`;
+            if (o === 'outfit_suit') {
+                bodySvg = `<path d="M 50 200 C 50 150, 150 150, 150 200 L 160 240 L 40 240 Z" fill="#1e293b" />
+                           <polygon points="100,165 92,200 108,200" fill="#f43f5e"/>
+                           <polygon points="100,165 80,150 120,150" fill="#ffffff"/>`;
+            } else if (o === 'outfit_hero') {
+                bodySvg = `<path d="M 30 160 L 170 160 L 180 240 L 20 240 Z" fill="#e11d48"/>
+                           <path d="M 50 200 C 50 150, 150 150, 150 200 L 160 240 L 40 240 Z" fill="#0284c7" />`;
+            } else if (o === 'outfit_armor') {
+                bodySvg = `<path d="M 50 200 C 50 150, 150 150, 150 200 L 160 240 L 40 240 Z" fill="#64748b" />
+                           <circle cx="100" cy="185" r="14" fill="#38bdf8"/>`;
+            }
+
+            // Head & Base Face
+            let headSvg = `<circle cx="100" cy="100" r="48" fill="#fde047" />`;
+
+            // Eyes / Expression
+            let eyesSvg = `<circle cx="82" cy="95" r="5" fill="#0f172a"/>
+                           <circle cx="118" cy="95" r="5" fill="#0f172a"/>
+                           <path d="M 88 115 Q 100 125 112 115" stroke="#0f172a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+
+            if (e === 'expr_happy') {
+                eyesSvg = `<path d="M 76 95 Q 82 88 88 95" stroke="#0f172a" stroke-width="3" fill="none"/>
+                           <path d="M 112 95 Q 118 88 124 95" stroke="#0f172a" stroke-width="3" fill="none"/>
+                           <path d="M 84 112 Q 100 130 116 112 Z" fill="#0f172a"/>`;
+            } else if (e === 'expr_wink') {
+                eyesSvg = `<path d="M 76 95 Q 82 88 88 95" stroke="#0f172a" stroke-width="3" fill="none"/>
+                           <circle cx="118" cy="95" r="5" fill="#0f172a"/>
+                           <path d="M 88 115 Q 100 128 112 115" stroke="#0f172a" stroke-width="3" fill="none"/>`;
+            } else if (e === 'expr_cool') {
+                eyesSvg = `<path d="M 82 115 Q 100 120 118 115" stroke="#0f172a" stroke-width="3" fill="none"/>`;
+            } else if (e === 'expr_sad') {
+                eyesSvg = `<circle cx="82" cy="95" r="4" fill="#0f172a"/>
+                           <circle cx="118" cy="95" r="4" fill="#0f172a"/>
+                           <path d="M 88 122 Q 100 110 112 122" stroke="#0f172a" stroke-width="3" fill="none"/>`;
+            }
+
+            // Glasses Layer
+            let glassesSvg = '';
+            if (g === 'glasses_cool' || e === 'expr_cool') {
+                glassesSvg = `<polygon points="70,88 95,88 92,104 73,104" fill="#0f172a"/>
+                              <polygon points="105,88 130,88 127,104 108,104" fill="#0f172a"/>
+                              <line x1="95" y1="92" x2="105" y2="92" stroke="#0f172a" stroke-width="3"/>`;
+            } else if (g === 'glasses_vr') {
+                glassesSvg = `<rect x="68" y="82" width="64" height="26" rx="6" fill="#0f172a" stroke="#0284c7" stroke-width="2"/>
+                              <line x1="72" y1="95" x2="128" y2="95" stroke="#38bdf8" stroke-width="3"/>`;
+            } else if (g === 'glasses_monocle') {
+                glassesSvg = `<circle cx="118" cy="95" r="10" fill="none" stroke="#f59e0b" stroke-width="2"/>
+                              <line x1="118" y1="105" x2="126" y2="135" stroke="#f59e0b" stroke-width="1.5"/>`;
+            }
+
+            // Hat Layer
+            let hatSvg = '';
+            if (h === 'hat_cap') {
+                hatSvg = `<path d="M 52 82 Q 100 45 148 82 Z" fill="#e11d48"/>
+                          <path d="M 120 80 L 165 85 L 145 92 Z" fill="#be123c"/>`;
+            } else if (h === 'hat_crown') {
+                hatSvg = `<polygon points="60,65 72,35 86,55 100,25 114,55 128,35 140,65" fill="#f59e0b"/>
+                          <rect x="60" y="60" width="80" height="8" fill="#d97706"/>`;
+            } else if (h === 'hat_wizard') {
+                hatSvg = `<polygon points="50,75 100,5 150,75" fill="#6366f1"/>
+                          <ellipse cx="100" cy="75" rx="55" ry="8" fill="#4f46e5"/>`;
+            } else if (h === 'hat_cat') {
+                hatSvg = `<polygon points="60,70 50,35 80,55" fill="#0f172a"/>
+                          <polygon points="140,70 150,35 120,55" fill="#0f172a"/>`;
+            }
+
+            return `${auraSvg}${bodySvg}${headSvg}${eyesSvg}${glassesSvg}${hatSvg}`;
+        }
+
+        function updateAvatarViews() {
+            const svgContent = renderAvatarSVG(state.equipped);
+            document.getElementById('mainAvatarSVG').innerHTML = svgContent;
+            document.getElementById('shopAvatarSVG').innerHTML = svgContent;
+        }
+
+        /* Speech Reaction System */
+        const REACTION_PHRASES = {
+            success: ["Ура, круто!", "Отличная работа!", "Молодец, так держать!", "Гениально!", "В точку!", "Ты настоящий эксперт!"],
+            fail: ["Нет, попробуй ещё раз!", "Упс, бывает, попробуй снова!", "Почти получилось!", "Не сдавайся!", "Будь внимательнее!"]
+        };
+
+        function triggerAvatarReaction(isSuccess, message = null) {
+            const bubble = document.getElementById('avatarSpeechBubble');
+            const shopBubble = document.getElementById('shopSpeechBubble');
+            const phrases = isSuccess ? REACTION_PHRASES.success : REACTION_PHRASES.fail;
+            const text = message || phrases[Math.floor(Math.random() * phrases.length)];
+
+            bubble.textContent = text;
+            shopBubble.textContent = text;
+
+            bubble.className = `speech-bubble font-bold text-xs px-3.5 py-2 rounded-xl text-center shadow-lg max-w-[220px] text-white ${
+                isSuccess ? 'bg-emerald-600 speech-bubble-success' : 'bg-rose-600 speech-bubble-fail'
+            }`;
+
+            // Temporary expression change
+            const prevExpr = state.equipped.expression;
+            state.equipped.expression = isSuccess ? 'expr_happy' : 'expr_sad';
+            document.getElementById('characterMoodBadge').textContent = isSuccess ? 'Радость' : 'Грусть';
+            updateAvatarViews();
+
+            playSound(isSuccess ? 'success' : 'fail');
+            speakPhrase(text);
+
+            setTimeout(() => {
+                state.equipped.expression = prevExpr;
+                document.getElementById('characterMoodBadge').textContent = 'Нейтральный';
+                updateAvatarViews();
+            }, 2500);
+        }
+
+        
+        // 1. Grid Selection CAPTCHA
+        function generateGridCaptcha() {
+            document.getElementById('captchaTypeBadge').textContent = "ПОИСК ПО СЕТКЕ";
+            document.getElementById('captchaPrompt').textContent = "Выберите все квадраты с указанным символом";
+            
+            const icons = ['fa-car', 'fa-tree', 'fa-bicycle', 'fa-plane', 'fa-bus', 'fa-key'];
+            const targetIcon = icons[Math.floor(Math.random() * icons.length)];
+            
+            document.getElementById('captchaSubPrompt').textContent = `Кликайте по всем иконкам с изображением [ ${targetIcon.replace('fa-', '')} ]`;
+
+            const workArea = document.getElementById('captchaWorkArea');
+            workArea.innerHTML = `<div class="grid grid-cols-3 gap-3 w-full max-w-xs" id="gridContainer"></div>`;
+            const gridContainer = document.getElementById('gridContainer');
+
+            const selectedIndices = new Set();
+            const targetIndices = new Set();
+
+            for (let i = 0; i < 9; i++) {
+                const isTarget = Math.random() < 0.45;
+                const cellIcon = isTarget ? targetIcon : icons.filter(x => x !== targetIcon)[Math.floor(Math.random() * (icons.length - 1))];
+                
+                if (isTarget) targetIndices.add(i);
+
+                const btn = document.createElement('button');
+                btn.className = "captcha-grid-cell h-20 bg-slate-800 border-2 border-slate-700 rounded-xl flex items-center justify-center text-2xl text-slate-300 hover:border-cyan-500";
+                btn.innerHTML = `<i class="fa-solid ${cellIcon}"></i>`;
+                
+                btn.onclick = () => {
+                    playSound('click');
+                    if (selectedIndices.has(i)) {
+                        selectedIndices.delete(i);
+                        btn.classList.remove('border-cyan-400', 'bg-cyan-950/40', 'text-cyan-300');
+                    } else {
+                        selectedIndices.add(i);
+                        btn.classList.add('border-cyan-400', 'bg-cyan-950/40', 'text-cyan-300');
+                    }
+                };
+                gridContainer.appendChild(btn);
+            }
+
+            state.currentSolution = () => {
+                if (selectedIndices.size !== targetIndices.size) return false;
+                for (let idx of selectedIndices) {
+                    if (!targetIndices.has(idx)) return false;
+                }
+                return true;
+            };
+        }
+
+        // 2. Slider Puzzle CAPTCHA
+        function generateSliderCaptcha() {
+            document.getElementById('captchaTypeBadge').textContent = "ПАЗЛ-СЛАЙДЕР";
+            document.getElementById('captchaPrompt').textContent = "Совместите ползунок с целевой полосой";
+            document.getElementById('captchaSubPrompt').textContent = "Передвиньте слайдер так, чтобы маркер попал точно в зелёную зону";
+
+            const targetPos = Math.floor(20 + Math.random() * 60);
+
+            const workArea = document.getElementById('captchaWorkArea');
+            workArea.innerHTML = `
+                <div class="w-full max-w-md bg-slate-900 border border-slate-700 p-6 rounded-2xl flex flex-col gap-6">
+                    <div class="relative w-full h-12 bg-slate-800 rounded-xl border border-slate-700 overflow-hidden flex items-center">
+                        <div class="absolute h-full bg-emerald-500/30 border-x-2 border-emerald-400" style="left: ${targetPos}%; width: 15%;"></div>
+                        <div id="sliderMarker" class="absolute h-full w-4 bg-cyan-400 shadow-lg shadow-cyan-400/50 rounded-sm" style="left: 0%;"></div>
+                    </div>
+                    <input type="range" id="puzzleRange" min="0" max="100" value="0" class="w-full accent-cyan-500 cursor-pointer h-3 bg-slate-700 rounded-lg appearance-none">
+                </div>
+            `;
+
+            const range = document.getElementById('puzzleRange');
+            const marker = document.getElementById('sliderMarker');
+
+            range.oninput = () => {
+                marker.style.left = `${range.value}%`;
+            };
+
+            state.currentSolution = () => {
+                const val = parseInt(range.value);
+                return val >= targetPos && val <= (targetPos + 15);
+            };
+        }
+
+        // 3. OCR Text CAPTCHA
+        function generateOcrCaptcha() {
+            document.getElementById('captchaTypeBadge').textContent = "И СКАЖЕННЫЙ ТЕКСТ";
+            document.getElementById('captchaPrompt').textContent = "Введите символы с изображения";
+            document.getElementById('captchaSubPrompt').textContent = "Учитываются буквы и цифры";
+
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 5; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+
+            const workArea = document.getElementById('captchaWorkArea');
+            workArea.innerHTML = `
+                <div class="flex flex-col items-center gap-4 w-full max-w-xs">
+                    <canvas id="ocrCanvas" width="220" height="70" class="bg-slate-950 border border-slate-700 rounded-xl shadow-inner"></canvas>
+                    <input type="text" id="ocrInput" placeholder="Код с картинки" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-center font-mono text-lg text-white uppercase focus:border-cyan-500 outline-none">
+                </div>
+            `;
+
+            const canvas = document.getElementById('ocrCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, 220, 70);
+
+            // Lines Noise
+            for(let i=0; i<6; i++) {
+                ctx.strokeStyle = `rgba(56, 189, 248, ${Math.random() * 0.4})`;
+                ctx.beginPath();
+                ctx.moveTo(Math.random()*220, Math.random()*70);
+                ctx.lineTo(Math.random()*220, Math.random()*70);
+                ctx.stroke();
+            }
+
+            // Render distorted text
+            ctx.font = 'bold 28px monospace';
+            ctx.fillStyle = '#38bdf8';
+            for (let i = 0; i < code.length; i++) {
+                ctx.save();
+                ctx.translate(30 + i * 35, 45);
+                ctx.rotate((Math.random() - 0.5) * 0.4);
+                ctx.fillText(code[i], 0, 0);
+                ctx.restore();
+            }
+
+            state.currentSolution = () => {
+                const inp = document.getElementById('ocrInput').value.trim().toUpperCase();
+                return inp === code;
+            };
+        }
+
+        // 4. Sequence CAPTCHA
+        function generateSequenceCaptcha() {
+            document.getElementById('captchaTypeBadge').textContent = "ПОСЛЕДОВАТЕЛЬНОСТЬ";
+            document.getElementById('captchaPrompt').textContent = "Нажмите на числа в порядке возрастания";
+            document.getElementById('captchaSubPrompt').textContent = "Начните с наименьшего числа";
+
+            const nums = Array.from({length: 5}, () => Math.floor(10 + Math.random() * 80));
+            const sorted = [...nums].sort((a,b) => a - b);
+            const clicked = [];
+
+            const workArea = document.getElementById('captchaWorkArea');
+            workArea.innerHTML = `<div class="flex flex-wrap justify-center gap-3 max-w-xs" id="seqContainer"></div>`;
+            const container = document.getElementById('seqContainer');
+
+            nums.forEach(n => {
+                const btn = document.createElement('button');
+                btn.className = "w-14 h-14 bg-slate-800 border-2 border-slate-700 rounded-xl font-mono text-lg font-bold text-white hover:border-cyan-400";
+                btn.textContent = n;
+                btn.onclick = () => {
+                    playSound('click');
+                    clicked.push(n);
+                    btn.disabled = true;
+                    btn.classList.add('opacity-40', 'bg-cyan-900');
+                };
+                container.appendChild(btn);
+            });
+
+            state.currentSolution = () => {
+                if (clicked.length !== sorted.length) return false;
+                return clicked.every((v, i) => v === sorted[i]);
+            };
+        }
+
+        // 5. Stroop Color CAPTCHA
+        function generateStroopCaptcha() {
+            document.getElementById('captchaTypeBadge').textContent = "ТЕСТ СТРУПА";
+            document.getElementById('captchaPrompt').textContent = "Выберите НАЗВАНИЕ ЦВЕТА заливки слова";
+            document.getElementById('captchaSubPrompt').textContent = "Игнорируйте прочитанный текст, смотрите только на реальный ЦВЕТ";
+
+            const colors = [
+                { name: 'Красный', hex: '#f43f5e' },
+                { name: 'Синий', hex: '#3b82f6' },
+                { name: 'Зелёный', hex: '#10b981' },
+                { name: 'Жёлтый', hex: '#eab308' }
+            ];
+
+            const textObj = colors[Math.floor(Math.random() * colors.length)];
+            const colorObj = colors[Math.floor(Math.random() * colors.length)];
+
+            let selected = null;
+
+            const workArea = document.getElementById('captchaWorkArea');
+            workArea.innerHTML = `
+                <div class="flex flex-col items-center gap-6">
+                    <div class="text-3xl font-black font-mono tracking-wide" style="color: ${colorObj.hex};">
+                        ${textObj.name}
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 w-full max-w-xs" id="stroopOpts"></div>
+                </div>
+            `;
+
+            const container = document.getElementById('stroopOpts');
+            colors.forEach(c => {
+                const btn = document.createElement('button');
+                btn.className = "py-2.5 bg-slate-800 border border-slate-700 rounded-xl font-bold text-sm text-slate-200 hover:border-cyan-400";
+                btn.textContent = c.name;
+                btn.onclick = () => {
+                    playSound('click');
+                    Array.from(container.children).forEach(b => b.classList.remove('border-cyan-400', 'bg-cyan-950'));
+                    btn.classList.add('border-cyan-400', 'bg-cyan-950');
+                    selected = c.name;
+                };
+                container.appendChild(btn);
+            });
+
+            state.currentSolution = () => selected === colorObj.name;
+        }
+
+        // 6. Geometry Arithmetic CAPTCHA
+        function generateGeometryCaptcha() {
+            document.getElementById('captchaTypeBadge').textContent = "ФИГУРЫ И СУММА";
+            document.getElementById('captchaPrompt').textContent = "Посчитайте общую сумму ценностей фигур";
+            document.getElementById('captchaSubPrompt').textContent = "Круг = 5, Квадрат = 10, Треугольник = 3";
+
+            const vals = { circle: 5, square: 10, triangle: 3 };
+            const items = ['circle', 'square', 'triangle'];
+            
+            const count = Math.floor(3 + Math.random() * 3);
+            let total = 0;
+            let iconsHtml = '';
+
+            for (let i = 0; i < count; i++) {
+                const shape = items[Math.floor(Math.random() * items.length)];
+                total += vals[shape];
+                const iconClass = shape === 'circle' ? 'fa-circle' : shape === 'square' ? 'fa-square' : 'fa-play -rotate-90';
+                iconsHtml += `<div class="p-3 bg-slate-800 border border-slate-700 rounded-xl text-cyan-400 text-xl"><i class="fa-solid ${iconClass}"></i></div>`;
+            }
+
+            const workArea = document.getElementById('captchaWorkArea');
+            workArea.innerHTML = `
+                <div class="flex flex-col items-center gap-5">
+                    <div class="flex gap-3">${iconsHtml}</div>
+                    <input type="number" id="geomInp" placeholder="Сумма" class="w-36 px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-center font-mono text-lg text-white outline-none focus:border-cyan-500">
+                </div>
+            `;
+
+            state.currentSolution = () => parseInt(document.getElementById('geomInp').value) === total;
+        }
+
+        // 7. Object Counter CAPTCHA
+        function generateCounterCaptcha() {
+            document.getElementById('captchaTypeBadge').textContent = "ПОДСЧЁТ ОБЪЕКТОВ";
+            document.getElementById('captchaPrompt').textContent = "Сколько звёздочек на картинке?";
+            document.getElementById('captchaSubPrompt').textContent = "Посчитайте только иконки звёзд";
+
+            const starCount = Math.floor(4 + Math.random() * 5);
+            const totalIcons = starCount + Math.floor(3 + Math.random() * 4);
+            
+            let html = '';
+            for (let i = 0; i < totalIcons; i++) {
+                const isStar = i < starCount;
+                const iconClass = isStar ? 'fa-star text-amber-400' : 'fa-heart text-rose-500';
+                html += `<i class="fa-solid ${iconClass} text-2xl m-2"></i>`;
+            }
+
+            const workArea = document.getElementById('captchaWorkArea');
+            workArea.innerHTML = `
+                <div class="flex flex-col items-center gap-5">
+                    <div class="bg-slate-950 p-4 border border-slate-800 rounded-2xl flex flex-wrap justify-center max-w-xs">${html}</div>
+                    <input type="number" id="cntInp" placeholder="Количество" class="w-36 px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-center font-mono text-lg text-white outline-none focus:border-cyan-500">
+                </div>
+            `;
+
+            state.currentSolution = () => parseInt(document.getElementById('cntInp').value) === starCount;
+        }
+
+        // 8. Angle Rotation CAPTCHA
+        function generateRotateCaptcha() {
+            document.getElementById('captchaTypeBadge').textContent = "ПОВОРОТ ЭЛЕМЕНТА";
+            document.getElementById('captchaPrompt').textContent = "Поверните стрелку вверх";
+            document.getElementById('captchaSubPrompt').textContent = "Установите угол поворота строго на 0°";
+
+            let currentAngle = Math.floor(1 + Math.random() * 3) * 90;
+
+            const workArea = document.getElementById('captchaWorkArea');
+            workArea.innerHTML = `
+                <div class="flex flex-col items-center gap-6">
+                    <div id="rotateTarget" class="w-24 h-24 bg-slate-800 border-2 border-slate-700 rounded-2xl flex items-center justify-center text-3xl text-cyan-400 transition-transform duration-200" style="transform: rotate(${currentAngle}deg);">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </div>
+                    <button id="rotateBtn" class="px-5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-bold text-slate-200">
+                        Повернуть на 90°
+                    </button>
+                </div>
+            `;
+
+            const target = document.getElementById('rotateTarget');
+            document.getElementById('rotateBtn').onclick = () => {
+                playSound('click');
+                currentAngle = (currentAngle + 90) % 360;
+                target.style.transform = `rotate(${currentAngle}deg)`;
+            };
+
+            state.currentSolution = () => currentAngle === 0;
+        }
+
+        /* CAPTCHA Router Switcher */
+        const CAPTCHA_GENERATORS = [
+            generateGridCaptcha,
+            generateSliderCaptcha,
+            generateOcrCaptcha,
+            generateSequenceCaptcha,
+            generateStroopCaptcha,
+            generateGeometryCaptcha,
+            generateCounterCaptcha,
+            generateRotateCaptcha
+        ];
+
+        function loadRandomCaptcha() {
+            const gen = CAPTCHA_GENERATORS[Math.floor(Math.random() * CAPTCHA_GENERATORS.length)];
+            gen();
+        }
+
+        
+        function updateMetricsUI() {
+            document.getElementById('statLevel').textContent = state.level;
+            document.getElementById('statScore').textContent = state.score;
+            document.getElementById('statStreak').textContent = state.streak;
+            document.getElementById('headerCoinBalance').textContent = state.coins;
+            document.getElementById('shopCoinBalance').textContent = state.coins;
+
+            const acc = state.totalAttempts > 0 ? Math.round((state.totalSolved / state.totalAttempts) * 100) : 100;
+            document.getElementById('statAccuracy').textContent = `${acc}%`;
+        }
+
+        /* Verification Controller */
+        function handleVerification() {
+            if (!state.currentSolution) return;
+
+            state.totalAttempts++;
+            const isCorrect = state.currentSolution();
+
+            if (isCorrect) {
+                state.score += 100;
+                state.coins += 20;
+                state.streak++;
+                state.totalSolved++;
+                
+                if (state.totalSolved % 3 === 0) state.level++;
+
+                triggerAvatarReaction(true);
+            } else {
+                state.streak = 0;
+                triggerAvatarReaction(false);
+            }
+
+            saveData();
+            updateMetricsUI();
+            setTimeout(loadRandomCaptcha, 1200);
+        }
+
+        /* Render Shop UI */
+        let currentShopCategory = 'hats';
+
+        function renderShopItems() {
+            const grid = document.getElementById('shopItemsGrid');
+            grid.innerHTML = '';
+
+            const items = CATALOG[currentShopCategory] || [];
+            items.forEach(item => {
+                const isOwned = state.inventory.includes(item.id);
+                const catKey = currentShopCategory.slice(0, -1); // e.g. 'hat'
+                const isEquipped = state.equipped[catKey] === item.id;
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border flex flex-col items-center justify-between gap-2 text-center transition ${
+                    isEquipped ? 'border-cyan-500 bg-cyan-950/30' : 'border-slate-800 bg-slate-900/80 hover:border-slate-700'
+                }`;
+
+                card.innerHTML = `
+                    <div class="text-2xl text-cyan-400 my-1"><i class="fa-solid ${item.icon}"></i></div>
+                    <div>
+                        <p class="text-xs font-bold text-white">${item.name}</p>
+                        <p class="text-[10px] text-amber-400 font-mono">${item.price > 0 ? item.price + ' коинов' : 'Бесплатно'}</p>
+                    </div>
+                    <button class="shop-action-btn w-full py-1 rounded-lg text-xs font-bold transition"></button>
+                `;
+
+                const btn = card.querySelector('.shop-action-btn');
+
+                if (isEquipped) {
+                    btn.textContent = 'Надет';
+                    btn.className += ' bg-cyan-600 text-white cursor-default';
+                } else if (isOwned) {
+                    btn.textContent = 'Надеть';
+                    btn.className += ' bg-slate-800 hover:bg-slate-700 text-slate-200';
+                    btn.onclick = () => {
+                        playSound('click');
+                        state.equipped[catKey] = item.id;
+                        saveData();
+                        updateAvatarViews();
+                        renderShopItems();
+                    };
+                } else {
+                    btn.textContent = 'Купить';
+                    btn.className += ' bg-amber-500 hover:bg-amber-400 text-slate-950';
+                    btn.onclick = () => {
+                        if (state.coins >= item.price) {
+                            playSound('success');
+                            state.coins -= item.price;
+                            state.inventory.push(item.id);
+                            state.equipped[catKey] = item.id;
+                            saveData();
+                            updateMetricsUI();
+                            updateAvatarViews();
+                            renderShopItems();
+                        } else {
+                            playSound('fail');
+                            triggerAvatarReaction(false, "Не хватает коинов!");
+                        }
+                    };
+                }
+
+                grid.appendChild(card);
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedData();
+            updateMetricsUI();
+            updateAvatarViews();
+            loadRandomCaptcha();
+
+            // Verify button click
+            document.getElementById('verifyBtn').onclick = handleVerification;
+
+            // Refresh Captcha
+            document.getElementById('refreshCaptchaBtn').onclick = () => {
+                playSound('click');
+                loadRandomCaptcha();
+            };
+
+            // Audio Toggles
+            document.getElementById('soundToggle').onclick = () => {
+                state.soundEnabled = !state.soundEnabled;
+                document.getElementById('soundIcon').className = state.soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
+                saveData();
+            };
+
+            document.getElementById('voiceToggle').onclick = () => {
+                state.voiceEnabled = !state.voiceEnabled;
+                document.getElementById('voiceIcon').className = state.voiceEnabled ? 'fa-solid fa-comment-dots text-amber-400' : 'fa-solid fa-comment-slash text-slate-500';
+                saveData();
+            };
+
+            // Shop Modals
+            const shopModal = document.getElementById('shopModal');
+            const openShop = () => {
+                playSound('click');
+                shopModal.classList.remove('hidden');
+                renderShopItems();
+            };
+            const closeShop = () => {
+                playSound('click');
+                shopModal.classList.add('hidden');
+            };
+
+            document.getElementById('openShopBtn').onclick = openShop;
+            document.getElementById('openShopBtn2').onclick = openShop;
+            document.getElementById('closeShopBtn').onclick = closeShop;
+
+            // Shop Category Tabs
+            document.querySelectorAll('.shop-tab-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    playSound('click');
+                    document.querySelectorAll('.shop-tab-btn').forEach(b => b.className = 'shop-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap');
+                    btn.className = 'shop-tab-btn active px-3 py-1.5 rounded-xl text-xs font-semibold bg-cyan-600 text-white whitespace-nowrap';
+                    currentShopCategory = btn.dataset.cat;
+                    renderShopItems();
+                };
+            });
+        });
+    </script>
+</body>
+</html>
